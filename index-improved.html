@@ -1,0 +1,1186 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Robo Rumble — 2v2 Battle Simulator</title>
+  <style>
+    * {
+      box-sizing: border-box;
+    }
+
+    html, body {
+      margin: 0;
+      height: 100%;
+      overflow: hidden;
+      background: #030508;
+      color: #eaf2ff;
+      font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+    }
+
+    #wrap {
+      height: 100%;
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) 330px;
+      grid-template-rows: 1fr;
+    }
+
+    #game {
+      position: relative;
+      min-width: 0;
+      min-height: 0;
+      height: 100%;
+      background: #05070b;
+    }
+
+    canvas {
+      display: block;
+      width: 100%;
+      height: 100%;
+      background: #05070b;
+    }
+
+    #hud {
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+    }
+
+    #topbar {
+      position: absolute;
+      left: 14px;
+      right: 14px;
+      top: 12px;
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      align-items: flex-start;
+    }
+
+    .card {
+      background: rgba(7, 12, 20, 0.84);
+      border: 1px solid #26354a;
+      border-radius: 10px;
+      box-shadow: 0 8px 30px rgba(0, 0, 0, 0.28);
+      backdrop-filter: blur(5px);
+    }
+
+    #matchInfo {
+      padding: 9px 12px;
+      min-width: 205px;
+    }
+
+    #matchInfo.arcade {
+      min-width: 230px;
+    }
+
+    #matchInfo .title {
+      font-weight: 800;
+      letter-spacing: 0.08em;
+      font-size: 13px;
+    }
+
+    #phase {
+      color: #91a6c4;
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.12em;
+    }
+
+    #teamCards {
+      display: flex;
+      gap: 8px;
+      max-width: 75%;
+    }
+
+    .teamcard {
+      padding: 9px 11px;
+      min-width: 190px;
+    }
+
+    .teamcard.teamA {
+      border-color: #3b82ff;
+    }
+
+    .teamcard.teamB {
+      border-color: #ef4444;
+    }
+
+    .teamcard .bar {
+      height: 9px;
+    }
+
+    .teamcard .rname {
+      font-size: 13px;
+      font-weight: 800;
+      display: flex;
+      justify-content: space-between;
+    }
+
+    .teamcard .style {
+      font-size: 10px;
+      color: #93a7c3;
+    }
+
+    .bar {
+      height: 5px;
+      background: #172231;
+      border-radius: 99px;
+      overflow: hidden;
+      margin-top: 5px;
+    }
+
+    .bar > i {
+      display: block;
+      height: 100%;
+      background: #65e38a;
+      width: 100%;
+      transition: width 0.1s;
+    }
+
+    #centerMsg {
+      position: absolute;
+      inset: 0;
+      display: grid;
+      place-items: center;
+      text-align: center;
+    }
+
+    #centerMsg .box {
+      padding: 18px 28px;
+      min-width: 300px;
+    }
+
+    #centerMsg h1 {
+      margin: 0 0 5px 0;
+      font-size: 42px;
+      letter-spacing: 0.14em;
+      text-shadow: 0 0 24px rgba(255, 255, 255, 0.28);
+    }
+
+    #centerMsg .fightflash {
+      font-size: 58px;
+      font-weight: 1000;
+      letter-spacing: 0.18em;
+      color: #fff;
+      text-shadow: 0 0 40px currentColor;
+    }
+
+    #centerMsg p {
+      margin: 4px;
+      color: #9eb1cc;
+    }
+
+    #controls {
+      position: absolute;
+      bottom: 14px;
+      left: 14px;
+      display: flex;
+      gap: 6px;
+      flex-wrap: wrap;
+      pointer-events: auto;
+    }
+
+    button, select {
+      font: inherit;
+      color: #eaf2ff;
+      background: #111b29;
+      border: 1px solid #304258;
+      border-radius: 7px;
+      padding: 7px 10px;
+      cursor: pointer;
+    }
+
+    button:hover, select:hover {
+      background: #182536;
+      border-color: #4b6481;
+    }
+
+    button:disabled {
+      opacity: 0.45;
+      cursor: not-allowed;
+    }
+
+    #replayControls {
+      display: none;
+      position: absolute;
+      bottom: 14px;
+      left: 50%;
+      transform: translateX(-50%);
+      pointer-events: auto;
+      align-items: center;
+      gap: 7px;
+    }
+
+    #scrub {
+      width: min(430px, 38vw);
+    }
+
+    #legend {
+      position: absolute;
+      right: 14px;
+      bottom: 14px;
+      padding: 8px 10px;
+      font-size: 10px;
+      color: #9db0c9;
+    }
+
+    .dot {
+      display: inline-block;
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      margin-right: 4px;
+    }
+
+    #side {
+      background: #0b111b;
+      border-left: 1px solid #26354a;
+      display: flex;
+      flex-direction: column;
+      min-width: 0;
+    }
+
+    #sideHead {
+      padding: 12px;
+      border-bottom: 1px solid #26354a;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    #sideHead strong {
+      font-size: 13px;
+      letter-spacing: 0.08em;
+    }
+
+    #log {
+      flex: 1;
+      overflow: auto;
+      padding: 9px;
+      font: 10px / 1.45 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      color: #b9c8dc;
+      white-space: pre-wrap;
+    }
+
+    .logline {
+      padding: 3px 4px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.035);
+    }
+
+    .logline.hit {
+      color: #f4c979;
+    }
+
+    .logline.ko {
+      color: #ff7e7e;
+      font-weight: 700;
+    }
+
+    .logline.ai {
+      color: #9fd0ff;
+    }
+
+    .logline.turn {
+      color: #b7efb7;
+    }
+
+    #summary {
+      display: none;
+      max-height: 42%;
+      overflow: auto;
+      border-top: 1px solid #26354a;
+      padding: 10px;
+      font-size: 11px;
+    }
+
+    #summary h3 {
+      margin: 0 0 7px 0;
+      font-size: 12px;
+    }
+
+    #summary table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+
+    #summary td, #summary th {
+      text-align: left;
+      padding: 3px;
+      border-bottom: 1px solid #1d2a3a;
+    }
+
+    #styleConfig {
+      display: flex;
+      gap: 5px;
+      flex-wrap: wrap;
+      padding: 9px;
+      border-bottom: 1px solid #26354a;
+    }
+
+    #styleConfig label {
+      font-size: 10px;
+      color: #8fa3bf;
+    }
+
+    @media (max-width: 900px) {
+      #wrap {
+        grid-template-columns: 1fr;
+      }
+
+      #side {
+        position: absolute;
+        right: 0;
+        top: 0;
+        bottom: 0;
+        width: min(330px, 82vw);
+        transform: translateX(100%);
+        transition: 0.2s;
+        z-index: 4;
+      }
+
+      .side-open #side {
+        transform: translateX(0);
+      }
+
+      #replayControls.show {
+        display: flex;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div id="wrap">
+    <section id="game">
+      <canvas id="c"></canvas>
+      <div id="hud">
+        <div id="topbar">
+          <div id="matchInfo" class="card">
+            <div class="title">ROBO RUMBLE // 2v2</div>
+            <div id="phase">BOOT</div>
+          </div>
+          <div id="teamCards"></div>
+        </div>
+        <div id="centerMsg"></div>
+        <div id="controls">
+          <button id="newBtn">NEW MATCH</button>
+          <select id="preset">
+            <option value="classic">Classic Styles</option>
+            <option value="random">Randomize Styles</option>
+            <option value="all">All Distinct</option>
+          </select>
+          <button id="logBtn">LOG</button>
+          <button id="replayBtn" disabled>REPLAY</button>
+        </div>
+        <div id="replayControls">
+          <button id="playBtn">PLAY</button>
+          <button id="restartReplay">RESTART</button>
+          <input id="scrub" type="range" min="0" max="1" value="0" step="1">
+          <span id="replayFrame">0/0</span>
+        </div>
+        <div id="legend" class="card">
+          <span class="dot" style="background: #3b82ff"></span>TEAM BLUE&nbsp;&nbsp;
+          <span class="dot" style="background: #ef4444"></span>TEAM RED
+        </div>
+      </div>
+    </section>
+    <aside id="side">
+      <div id="sideHead">
+        <strong>DIAGNOSTIC CONSOLE</strong>
+        <button id="closeLog">×</button>
+      </div>
+      <div id="styleConfig">
+        <label>TEAM A <select id="a1"></select></label>
+        <label>TEAM B <select id="b1"></select></label>
+      </div>
+      <div id="log"></div>
+      <div id="summary"></div>
+    </aside>
+  </div>
+
+  <script>
+    "use strict";
+
+    /* ========================================
+       CONFIGURATION: All Magic Numbers
+       ======================================== */
+    
+    const CONFIG = {
+      // Arena dimensions
+      arena: {
+        width: 1800,
+        height: 1100,
+        fighterRadius: 28,
+        spawnPoints: [
+          [330, 300],   // Team 0, Fighter 0
+          [330, 800],   // Team 0, Fighter 1
+          [1470, 300],  // Team 1, Fighter 0
+          [1470, 800]   // Team 1, Fighter 1
+        ],
+        obstacles: [
+          { x: 760, y: 150, w: 280, h: 55 },
+          { x: 760, y: 895, w: 280, h: 55 },
+          { x: 260, y: 430, w: 80, h: 240 },
+          { x: 1460, y: 430, w: 80, h: 240 },
+          { x: 585, y: 325, w: 85, h: 85 },
+          { x: 1130, y: 690, w: 85, h: 85 },
+          { x: 860, y: 500, w: 80, h: 100 }
+        ]
+      },
+
+      // Fighter style configurations
+      styles: {
+        "Kung Fu": {
+          speed: 190,
+          range: 70,
+          damage: 8,
+          heavy: 18,
+          hp: 100,
+          attackRate: 0.32,
+          color: "#35e67a"
+        },
+        "Wrestler": {
+          speed: 105,
+          range: 74,
+          damage: 12,
+          heavy: 30,
+          hp: 135,
+          attackRate: 0.65,
+          color: "#f0b52d"
+        },
+        "Boxer": {
+          speed: 145,
+          range: 125,
+          damage: 10,
+          heavy: 27,
+          hp: 110,
+          attackRate: 0.52,
+          color: "#3297ff"
+        },
+        "Brawler": {
+          speed: 125,
+          range: 82,
+          damage: 16,
+          heavy: 38,
+          hp: 118,
+          attackRate: 0.75,
+          color: "#ff3d3d"
+        },
+        "Martial Arts": {
+          speed: 155,
+          range: 100,
+          damage: 12,
+          heavy: 25,
+          hp: 108,
+          attackRate: 0.48,
+          color: "#b65cff"
+        }
+      },
+
+      // Combat timing and mechanics
+      combat: {
+        // HP multiplier applied to all fighters at creation
+        hpMultiplier: 1.35,
+
+        // Attack windows for each style (base time to wait before attacking)
+        baseAttackWindow: {
+          "Kung Fu": 0.16,
+          "Boxer": 0.18,
+          "Wrestler": 0.22,
+          "Brawler": 0.24,
+          "Martial Arts": 0.18
+        },
+
+        // Attack recovery gaps (cooldown after attacking)
+        recoveryGap: {
+          "Kung Fu": 0.88,
+          "Boxer": 0.78,
+          "Wrestler": 1.16,
+          "Brawler": 1.04,
+          "Martial Arts": 0.92
+        },
+
+        // Special move cooldown
+        specialCooldown: 1.85,
+
+        // Knockdown durations
+        knockdownBase: 0.72,
+        knockdownDmgScaling: 0.72,
+
+        // Frozen effect durations
+        frozenBase: 1.1,
+        frozenDmgScaling: 0.018,
+        frozenMax: 2.4,
+
+        // Guard mechanics
+        guardBlockPercent: 0.38,
+        grapplePin: 0.85,
+        grappleDuration: 0.50,
+
+        // Counter window (duel mode)
+        counterWindowDuel: 0.34,
+
+        // Combo mechanics
+        maxComboHits: 4,
+        comboCooldown: { DUEL: 1.55, BRAWL: 1.15 },
+
+        // Damage floors by move type
+        floorDamage: {
+          JAB: 18,
+          PALM: 20,
+          MIXED: 20,
+          COUNTER: 24,
+          CROSS: 26,
+          KICK: 29,
+          "SPIN KICK": 44,
+          HEAVY: 31,
+          RUSH: 27,
+          GRAPPLE: 34,
+          FIREBALL: 38,
+          "SONIC BLAST": 38,
+          SHOCKWAVE: 41,
+          "ICE FREEZE": 39,
+          "SEISMIC SLAM": 44,
+          "FAULTLINE": 38,
+          "SCRAP CANNON": 42,
+          "VOID NEEDLE": 46,
+          "JUMP KICK": 36,
+          "SUPER PUNCH": 40,
+          "IRON CROSS": 35,
+          "POWER SLAM": 44,
+          "GROUND BREAKER": 46,
+          "SHADOW FLURRY": 42
+        },
+
+        // Distance thresholds
+        distanceRangeExtension: 62,
+        distanceAttackThreshold: 680,
+        distanceDuelCounterReady: 230,
+        distanceDuelFlanking: 420,
+        distanceDuelPositioning: 170,
+        distanceCloseRange: 145,
+        distanceFar: 150,
+
+        // Accuracy modifiers
+        precisionCounterBoost: 1.18,
+        boxerCounterBoost: 1.5,
+        martialArtsCounterBoost: 1.4,
+        kungFuKickBoost: 1.2,
+
+        // Knockback mechanics
+        heavyKnockbackThreshold: 24,
+        heavyKnockbackForce: 0.5,
+        lightKnockbackForce: 0.82,
+        knockbackBase: 90,
+        knockbackScaling: 3.4,
+        lightKnockbackBase: 25,
+        lightKnockbackScaling: 1.4,
+
+        // Knockdown chance thresholds
+        knockdownChanceSpecial: 0.34,
+        knockdownChanceSpinKick: 0.26,
+        knockdownChanceHeavy: 0.18,
+
+        // Partial decap (head detachment)
+        headDetachChanceSpinKick: 0.30,
+        headDetachChanceSpecial: 0.18,
+        headDetachChanceNormal: 0.12,
+        headDetachHpThreshold: 0.28,
+        headDetachYOffset: 82,
+
+        // Team combo multipliers
+        teamComboMultBrawl: 1.58,
+        teamComboMultDuel: 1.35,
+
+        // Finisher threshold
+        finisherHpThreshold: 0.32,
+        finisherDmgReduction: 0.16
+      },
+
+      // Combat mode mechanics (DUEL vs BRAWL)
+      combatMode: {
+        // Initial mode
+        defaultMode: "DUEL",
+
+        // Duration of each phase
+        duelDuration: { base: 5.6, variance: 3.6 },
+        brawlDuration: { base: 4.2, variance: 2.2 },
+
+        // AI target selection for brawl
+        brawlConvergenceChance: 0.78,
+
+        // Attack frequency adjustments
+        brawlAttackSpeedMult: 0.60,
+        duelAttackSpeedMult: 1.18,
+
+        // Special attack chances
+        brawlSpecialChance: 0.64,
+        duelCounterSpecialChance: 0.66,
+        duelComboStage3Chance: 0.72,
+        duelComboStage1to2Chance: 0.10,
+        duelNoComboChance: 0.24,
+
+        // Duel spacing
+        duelGapMin: 92,
+        duelGapMax: 142,
+        duelGapMult: 0.86,
+
+        // Brawl spacing (more compact)
+        brawlGapMin: 62,
+        brawlGapMax: 104,
+        brawlGapMult: 0.68,
+
+        // Duel speed slowdown (close to opponent)
+        duelCloseSpeedMult: 0.68,
+        brawlCloseSpeedMult: 0.82,
+
+        // Duel speed boost (far from opponent)
+        farSpeedBoost: 1.18,
+
+        // Feint trigger
+        feintChance: 0.035,
+        feintDuration: 0.22,
+
+        // Stance and movement adjustments
+        guardSpeedMult: 0.62,
+        attackSpeedMult: 0.48,
+        closeRangeSeekSpeedMult: 0.35
+      },
+
+      // Camera and rendering
+      camera: {
+        defaultX: 900,
+        defaultY: 550,
+        defaultZoom: 0.62,
+        minZoom: 0.38,
+        maxZoom: 0.85,
+        zoomSpanMin: 500,
+        zoomSpanPadding: { x: 360, y: 260 },
+        zoomRatioPadding: 0.67
+      },
+
+      // Visual effects
+      fx: {
+        // Screen shake decay
+        shakeDecay: 30,
+
+        // Impact particle counts
+        impactSparkSmall: 10,
+        impactSparkLarge: 24,
+        impactDebrisSmall: 3,
+        impactDebrisLarge: 8,
+
+        // Particle physics
+        particleFriction: 0.96,
+        particleLifeSmall: { min: 0.25, max: 0.55 },
+        particleLifeLarge: { min: 0.4, max: 0.8 },
+        particleSizeSmall: { min: 1.5, max: 2.5 },
+        particleSizeLarge: { min: 3, max: 7 },
+
+        // Ring (impact indicator) animation
+        ringExpandSpeed: 9,
+        ringDuration: 0.45,
+
+        // Float text animation
+        floatSpeed: 28,
+
+        // Detached head physics
+        headGravity: 720,
+        headFrictionExp: 0.985,
+        headRotFrictionExp: 0.995,
+        headBounceElasticity: 0.46,
+        headBounceFriction: 0.76,
+        headRotBounceFriction: 0.92,
+
+        // Projectile physics
+        projectileSpeedIce: 430,
+        projectileSpeedQuake: 390,
+        projectileSpeedVoid: 610,
+        projectileSpeedDefault: 520,
+        projectileLife: 1.7
+      },
+
+      // Hit stop (freeze frame) durations
+      hitStop: {
+        light: 0.045,
+        medium: 0.065,
+        heavy: 0.075,
+        special: 0.11,
+        precision: 0.13,
+        block: 0.035,
+        doubleTeam: 0.14,
+        doubleTeamFinal: 0.24,
+        modeSwitch: 0.06,
+        teamAssaultEntry: 0.10
+      },
+
+      // Screen shake intensities
+      shake: {
+        lightHit: 4,
+        mediumHit: 7,
+        heavyHit: 9,
+        specialHit: 12,
+        knockdown: 15,
+        finisher: 24,
+        finisherPhase1: 34,
+        finisherPhase2: 42,
+        doubleTeamEntry: 30,
+        doubleTeamPhase1: 26,
+        doubleTeamPhase2: 34,
+        doubleTeamFinal: 42,
+        headDetach: 21,
+        headBounce: 8,
+        projectileIce: 9,
+        projectileDefault: 13,
+        brawlModeSwitch: 18
+      },
+
+      // Match timing
+      timing: {
+        introDelay: 2000,    // ms before match starts
+        finisherDuration: 2400,
+        finisherPhase1: 1250,
+        finisherPhase2: 1900,
+        teamAssaultDuration: 2700,
+        teamAssaultPhase1: 420,
+        teamAssaultPhase2: 900,
+        teamAssaultPhase3: 1450,
+        teamAssaultPhase4: 2050,
+        victoryDisplayTime: 3200,
+        centerMsgDuration: 600,
+        modeAnnouncementTime: 700,
+        finisherTextTime: 850
+      },
+
+      // AI targeting and decision-making
+      ai: {
+        // Style-specific distance thresholds
+        distancePreference: {
+          "Kung Fu": { attack: 92, close: 150, seek: 150 },
+          "Wrestler": { attack: 82, close: 90, seek: 90 },
+          "Boxer": { incoming: 175 },
+          "Brawler": { attack: 105, incoming: 125 },
+          "Martial Arts": { incoming: 160 }
+        },
+
+        // Target refresh rates
+        targetRefreshBaseDuel: 1.15,
+        targetRefreshBaseBrawl: 0.55,
+        targetRefreshDuel: 1.8,
+
+        // Enemy priority weighting
+        damageWeightPercent: 0.45,
+        aloneEnemyWeight: 55,
+        behindEnemyWeight: 15,
+
+        // Movement smoothing
+        movementDamping: 7,
+        rotationDamping: 10,
+        rotationFastDamping: 8,
+        staggerRotDamping: 8,
+        staggerSpeedDamping: 12,
+        bodyLeanMax: 0.14,
+        bodyLeanDamping: 7,
+
+        // Combat rhythm
+        stepPhaseScaling: 0.055,
+        walkThreshold: 8,
+        walkBoost: 1.5,
+
+        // Separation physics
+        separationMultiplier: 0.52,
+        separationTeamDrag: 0.82,
+        minSeparationDistance: 0.01
+      },
+
+      // Logging configuration
+      logging: {
+        maxEntries: 5000,
+        scrollThreshold: 30,
+        enableAILogging: true
+      },
+
+      // Team configuration
+      teams: {
+        count: 2,
+        fightersPerTeam: 2,
+        colors: ["#3b82ff", "#ef4444"],
+        names: {
+          0: ["K-9", "SABLE"],
+          1: ["BRUISER", "VOLT"]
+        }
+      },
+
+      // Round mechanics
+      rounds: {
+        winsRequired: 2,
+        maxRounds: 3
+      }
+    };
+
+    /* ========================================
+       UTILITIES
+       ======================================== */
+
+    const TAU = Math.PI * 2;
+
+    function clamp(value, min, max) {
+      return Math.max(min, Math.min(max, value));
+    }
+
+    function lerp(a, b, t) {
+      return a + (b - a) * t;
+    }
+
+    function distance(a, b) {
+      return Math.hypot(a.x - b.x, a.y - b.y);
+    }
+
+    function angle(a, b) {
+      return Math.atan2(b.y - a.y, b.x - a.x);
+    }
+
+    function normalizeAngle(a) {
+      return Math.atan2(Math.sin(a), Math.cos(a));
+    }
+
+    function random(min, max) {
+      return min + Math.random() * (max - min);
+    }
+
+    function randomPick(array) {
+      return array[(Math.random() * array.length) | 0];
+    }
+
+    function cssEscape(str) {
+      return String(str).replace(/[&<>"]/g, (m) => ({
+        "&": "&amp;",
+        "<": "&lt;",
+        ">": "&gt;",
+        '"': "&quot;"
+      }[m]));
+    }
+
+    function lerpAngle(a, b, t) {
+      return a + normalizeAngle(b - a) * t;
+    }
+
+    /**
+     * Circle-to-rectangle collision push: separates a circle from a rectangle.
+     * @param {Object} point - Circle center {x, y}
+     * @param {number} radius - Circle radius
+     * @param {Object} rect - Rectangle {x, y, w, h}
+     * @returns {boolean} - Whether collision occurred
+     */
+    function circleRectPush(point, radius, rect) {
+      const cx = clamp(point.x, rect.x, rect.x + rect.w);
+      const cy = clamp(point.y, rect.y, rect.y + rect.h);
+      let dx = point.x - cx;
+      let dy = point.y - cy;
+      const d = Math.hypot(dx, dy);
+
+      if (d < radius) {
+        if (d < 0.001) {
+          // Ambiguous corner: push in direction of closest edge
+          const left = Math.abs(point.x - rect.x);
+          const right = Math.abs(point.x - (rect.x + rect.w));
+          const top = Math.abs(point.y - rect.y);
+          const bottom = Math.abs(point.y - (rect.y + rect.h));
+          const m = Math.min(left, right, top, bottom);
+
+          if (m === left) {
+            point.x = rect.x - radius;
+          } else if (m === right) {
+            point.x = rect.x + rect.w + radius;
+          } else if (m === top) {
+            point.y = rect.y - radius;
+          } else {
+            point.y = rect.y + rect.h + radius;
+          }
+        } else {
+          // Push away from closest point
+          point.x = cx + (dx / d) * radius;
+          point.y = cy + (dy / d) * radius;
+        }
+        return true;
+      }
+      return false;
+    }
+
+    /* ========================================
+       CANVAS AND RENDERING SETUP
+       ======================================== */
+
+    const canvas = document.getElementById("c");
+    const ctx = canvas.getContext("2d");
+    if (!ctx) {
+      throw new Error("Failed to get 2D canvas context. This browser may not support HTML5 Canvas.");
+    }
+
+    let screenWidth = 0;
+    let screenHeight = 0;
+    let devicePixelRatio = 1;
+
+    function handleCanvasResize() {
+      devicePixelRatio = Math.min(2, window.devicePixelRatio || 1);
+      screenWidth = canvas.clientWidth || window.innerWidth;
+      screenHeight = canvas.clientHeight || window.innerHeight;
+      canvas.width = Math.max(1, Math.floor(screenWidth * devicePixelRatio));
+      canvas.height = Math.max(1, Math.floor(screenHeight * devicePixelRatio));
+      ctx.scale(devicePixelRatio, devicePixelRatio);
+    }
+
+    window.addEventListener("resize", handleCanvasResize);
+    handleCanvasResize();
+
+    /* ========================================
+       GAME STATE INITIALIZATION
+       ======================================== */
+
+    // References for convenience
+    const arena = CONFIG.arena;
+    const obstacles = arena.obstacles;
+    const spawn = arena.spawnPoints;
+    const STYLES = CONFIG.styles;
+    const styleNames = Object.keys(STYLES);
+    const TEAM_COLORS = CONFIG.teams.colors;
+
+    // Game loop state
+    let matchTime = 0;
+    let matchOver = false;
+    let lastFrameTime = performance.now();
+    let frameAccumulator = 0;
+
+    // Match state
+    let roundNumber = 1;
+    let roundTime = 0;
+    let roundWins = [0, 0];
+    let roundOver = false;
+    let boutOver = false;
+    let phase = "INTRO";
+
+    // Combat state
+    let hitStop = 0;
+    let comboCount = 0;
+    let comboTimer = 0;
+    let comboTeam = -1;
+    let finisherText = "";
+    let announcerTimer = 0;
+    let cinematic = null;
+    let teamAssaultTriggered = false;
+
+    // Victory state
+    let victoryTeam = -1;
+    let victoryStart = 0;
+    let victoryKind = "ROUND";
+
+    // Combat mode (DUEL vs BRAWL)
+    let combatMode = CONFIG.combatMode.defaultMode;
+    let combatModeTime = 0;
+    let combatModeDuration = CONFIG.combatMode.duelDuration.base + random(0, CONFIG.combatMode.duelDuration.variance);
+    let combatModeLabel = "DUEL PHASE";
+    let duelTechnique = 0;
+    let brawlSurge = 0;
+
+    // Replay state
+    let replayFrames = [];
+    let replayIndex = 0;
+    let replaying = false;
+    let replayPlaying = false;
+
+    // Logging
+    let logEntries = [];
+    let turningPoints = [];
+    let tick = 0;
+    let frameRecordAccumulator = 0;
+
+    // Game entities
+    let robots = [];
+    let particles = [];
+    let floats = [];
+    let rings = [];
+    let projectiles = [];
+    let detachedHeads = [];
+    let shake = 0;
+
+    // Camera state
+    let camera = {
+      x: CONFIG.camera.defaultX,
+      y: CONFIG.camera.defaultY,
+      z: CONFIG.camera.defaultZoom,
+      targetX: CONFIG.camera.defaultX,
+      targetY: CONFIG.camera.defaultY,
+      targetZ: CONFIG.camera.defaultZoom
+    };
+
+    /* ========================================
+       ROBOT CLASS
+       ======================================== */
+
+    /**
+     * Fighter robot in the arena.
+     * 
+     * States: IDLE → SEEK → (ATTACK | GRAPPLE | COUNTER | GUARD | EVADE)
+     * 
+     * @class Robot
+     * @param {string} name - Fighter name
+     * @param {number} team - Team index (0 or 1)
+     * @param {string} style - Fighting style name
+     * @param {number} spawnIndex - Spawn point index
+     */
+    class Robot {
+      constructor(name, team, style, spawnIndex) {
+        const styleStats = STYLES[style];
+        const spawnPoint = spawn[spawnIndex];
+
+        // Identity
+        this.name = name;
+        this.team = team;
+        this.style = style;
+
+        // Position and movement
+        this.x = spawnPoint[0];
+        this.y = spawnPoint[1];
+        this.vx = 0;
+        this.vy = 0;
+        this.angle = team === 0 ? 0 : Math.PI;
+
+        // Health
+        this.hp = styleStats.hp * CONFIG.combat.hpMultiplier;
+        this.maxHp = styleStats.hp * CONFIG.combat.hpMultiplier;
+        this.radius = CONFIG.arena.fighterRadius;
+
+        // Core state machine
+        this.state = "IDLE";
+        this.stateTime = 0;
+        this.target = null;
+
+        // Action timers and cooldowns
+        this.cool = 0;           // Attack cooldown
+        this.attack = 0;         // Current attack duration
+        this.attackKind = "";    // Type of attack being performed
+        this.special = 0;        // Special move cooldown
+        this.guardTime = 0;      // Guard duration
+        this.guard = 0;          // Guard active state (0 or 1)
+
+        // Attack details
+        this.attackTarget = null;
+        this.attackDuration = 0;
+        this.attackPhase = 0;
+        this.attackContact = 0;
+        this.attackBase = 0;
+        this.attackReach = 0;
+        this.attackSpecial = false;
+        this.pendingHit = false;
+        this.attackResolved = false;
+
+        // Defense and reaction
+        this.dodge = 0;          // Dodge duration
+        this.dodgeDir = 0;       // Dodge direction (-1, 0, or 1)
+        this.hitFlash = 0;       // Hit flash duration
+        this.hitReact = 0;       // Hit reaction duration
+        this.hitDir = 0;         // Direction of hit
+        this.stagger = 0;        // Stagger duration
+        this.recoil = 0;         // Recoil duration
+        this.grapple = 0;        // Grapple state
+        this.pinned = 0;         // Pinned duration
+
+        // Knockdown and frozen states
+        this.knockdown = 0;
+        this.knockdownDir = 0;
+        this.knockdownSpin = 0;
+        this.frozen = 0;         // Frozen/ice effect duration
+        this.invuln = 0;         // Invulnerability frames
+
+        // Armor and special states
+        this.headDetached = false;
+        this.partialDecap = 0;
+        this.disorient = 0;
+        this.disorientJitter = 0;
+
+        // Movement and animation
+        this.walk = 0;
+        this.stepPhase = 0;
+        this.speedNow = 0;
+        this.bodyLean = 0;
+
+        // Combo system
+        this.comboHits = 0;
+        this.comboTimer = 0;
+        this.comboChain = 0;
+        this.feint = 0;          // Feint (fake attack) duration
+
+        // Counter mechanics
+        this.counterWindow = 0;
+        this.counterFlash = 0;
+
+        // Statistics
+        this.damageDone = 0;
+        this.damageTaken = 0;
+        this.roundDamage = 0;
+        this.attempts = 0;
+        this.landed = 0;
+        this.missed = 0;
+        this.kos = 0;
+
+        // State tracking for debugging
+        this.states = {
+          IDLE: 0,
+          SEEK: 0,
+          ATTACK: 0,
+          EVADE: 0,
+          RETREAT: 0,
+          GRAPPLE: 0,
+          COUNTER: 0
+        };
+
+        this.lastReason = "Booting tactical system";
+        this.lastHit = -9;
+
+        // Miscellaneous
+        this.poseSeed = Math.random();
+        this.specialType = "";
+        this.airborne = 0;
+      }
+
+      /**
+       * Check if this robot is alive.
+       * @returns {boolean}
+       */
+      alive() {
+        return this.hp > 0;
+      }
+
+      /**
+       * Set current state with a reason for logging.
+       * @param {string} newState - New state name
+       * @param {string} reason - Reason for state change (for logging)
+       */
+      setState(newState, reason = "") {
+        if (this.state !== newState) {
+          this.state = newState;
+          this.stateTime = 0;
+          this.lastReason = reason;
+          logAI(this);
+        }
+      }
+    }
+
+    // Placeholder function definitions (will be expanded next)
+    function log(kind, msg, cls = "") {}
+    function logAI(robot) {}
+    function renderLog() {}
+    function setCenter(html) {}
+    function updateTeamCards() {}
+    function render() {}
+    function makeMatch() {}
+
+    /* ========================================
+       TODO: CONTINUE IN NEXT SECTION
+       Remaining functions (AI, Combat, Rendering)
+       will follow the same expanded format
+       ======================================== */
+
+  </script>
+</body>
+</html>
